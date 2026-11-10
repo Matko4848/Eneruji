@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ENERUJI · Proizvodni kalkulator</title>
+<style>
+  :root{
+    --bg:#0e1116; --panel:#161b23; --panel2:#1c232e; --line:#2a3342;
+    --txt:#e8edf4; --dim:#93a1b5; --acc:#7dd069; --acc2:#4aa3ff;
+    --warn:#ffb454; --bad:#ff6b6b; --mono:"SFMono-Regular",Consolas,"Liberation Mono",monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.5 -apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+  .wrap{max-width:1080px;margin:0 auto;padding:24px 20px 80px}
+  header{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:6px}
+  h1{font-size:26px;margin:0;letter-spacing:.5px}
+  h1 b{color:var(--acc)}
+  .sub{color:var(--dim);font-size:13px}
+  .tabs{display:flex;gap:8px;margin:18px 0 20px;flex-wrap:wrap}
+  .tabs button{background:var(--panel);border:1px solid var(--line);color:var(--dim);padding:9px 16px;border-radius:9px;cursor:pointer;font-size:14px}
+  .tabs button.active{background:var(--panel2);color:var(--txt);border-color:var(--acc)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:18px}
+  .card h2{font-size:16px;margin:0 0 12px}
+  .card h2 small{color:var(--dim);font-weight:400}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th{color:var(--dim);text-align:left;font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.4px;padding:6px 8px;border-bottom:1px solid var(--line)}
+  td{padding:7px 8px;border-bottom:1px solid #202836;vertical-align:middle}
+  tr:last-child td{border-bottom:none}
+  td.num,th.num{text-align:right;font-family:var(--mono);font-size:13px}
+  input[type=number]{background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:7px;padding:6px 8px;width:110px;font-family:var(--mono);font-size:13px;text-align:right}
+  input[type=number]:focus{outline:none;border-color:var(--acc2)}
+  input.short{width:80px}
+  select{background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:7px;padding:7px 10px;font-size:14px}
+  .unit{color:var(--dim);font-size:12px;margin-left:5px}
+  .pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11.5px;font-weight:600}
+  .pill.ok{background:#1d3320;color:var(--acc)}
+  .pill.short{background:#3a1d1d;color:var(--bad)}
+  .pill.part{background:#3a2f1a;color:var(--warn)}
+  .bottleneck{color:var(--warn)}
+  .big{display:flex;gap:14px;flex-wrap:wrap;margin:4px 0 14px}
+  .stat{flex:1;min-width:150px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+  .stat .v{font-size:22px;font-weight:700;font-family:var(--mono)}
+  .stat .l{color:var(--dim);font-size:12px;margin-top:2px}
+  .steps{counter-reset:s;list-style:none;padding:0;margin:0}
+  .steps li{counter-increment:s;position:relative;padding:10px 12px 10px 46px;border-left:2px solid var(--acc);margin:0 0 10px;background:var(--panel2);border-radius:0 9px 9px 0}
+  .steps li::before{content:counter(s);position:absolute;left:12px;top:10px;width:22px;height:22px;border-radius:50%;background:var(--acc);color:#0e1116;font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center}
+  .note{background:#20263a;border:1px solid #33406b;border-radius:9px;padding:11px 14px;font-size:13.5px;color:#c9d6f0;margin:10px 0}
+  .note.warn{background:#332a1a;border-color:#5c4a22;color:#f0dfc0}
+  .note.bad{background:#331d1d;border-color:#5c2626;color:#f0c9c9}
+  .muted{color:var(--dim);font-size:12.5px}
+  .mono{font-family:var(--mono);font-size:13px}
+  .flexrow{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  button.act{background:var(--acc);border:none;color:#0e1116;font-weight:700;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13.5px}
+  button.ghost{background:transparent;border:1px solid var(--line);color:var(--dim);padding:7px 13px;border-radius:8px;cursor:pointer;font-size:13px}
+  .tag{display:inline-block;background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:1px 8px;font-size:11.5px;color:var(--dim)}
+  .hidden{display:none}
+  h3.sec{font-size:13px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin:20px 0 8px}
+  .editable td input{width:90px}
+  .flavcol{color:var(--acc2)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>ENER<b>UJI</b> · proizvodni kalkulator</h1>
+    <span class="sub">formule: 500 g / vrečka · porcija 30 g (1 scoop)</span>
+  </header>
+
+  <div class="tabs">
+    <button id="tab1" class="active" onclick="showTab(1)">1 · Zaloge → koliko lahko naredim</button>
+    <button id="tab2" onclick="showTab(2)">2 · Vrečke → receptura &amp; mešanje</button>
+    <button id="tab3" onclick="showTab(3)">3 · Formule (napredno)</button>
+  </div>
+
+  <!-- ============ TAB 1 ============ -->
+  <div id="pane1">
+    <div class="card">
+      <h2>Zaloge sestavin <small>— vpiši, kaj imaš na zalogi</small></h2>
+      <table id="stockTable"></table>
+      <div class="muted" style="margin-top:8px">Maltodekstrin in fruktoza vnaša v kg, vse ostalo v gramih. Arome so ločene sestavine — vsak okus posebej.</div>
+    </div>
+
+    <div class="card">
+      <h2>Proizvodni načrt <small>— število vrečk (500 g) na izdelek in okus</small></h2>
+      <table id="planTable"></table>
+      <div class="flexrow" style="margin-top:12px">
+        <button class="act" onclick="renderPlan()">Izračunaj</button>
+        <button class="ghost" onclick="maxEverything()">Napolni na maksimum (po vrsti)</button>
+        <button class="ghost" onclick="clearPlan()">Počisti načrt</button>
+      </div>
+    </div>
+
+    <div class="card" id="resultsCard">
+      <h2>Rezultat <small>— potrebno / na zalogi / ostane</small></h2>
+      <div class="big" id="summaryStats"></div>
+      <table id="needTable"></table>
+      <div id="bottleneckBox"></div>
+    </div>
+  </div>
+
+  <!-- ============ TAB 2 ============ -->
+  <div id="pane2" class="hidden">
+    <div class="card">
+      <h2>Receptura po vrečkah <small>— izberi izdelek, okus in število 500&nbsp;g vrečk</small></h2>
+      <div class="flexrow" style="margin-bottom:14px">
+        <select id="recVariant"></select>
+        <select id="recFlavor"></select>
+        <span style="color:var(--dim)">število vrečk:</span>
+        <input type="number" id="recPouches" class="short" min="0" step="1" value="1">
+        <span class="muted">(1 vrečka = 500 g praška)</span>
+      </div>
+      <table id="recTable"></table>
+      <div class="big" id="recStats" style="margin-top:14px"></div>
+    </div>
+
+    <div class="card">
+      <h2>Vrstni red mešanja <small>— suho mešanje, ena serija</small></h2>
+      <ol class="steps" id="stepList"></ol>
+      <div id="recNotes"></div>
+    </div>
+
+    <div class="card">
+      <h2>Pomembne opombe proizvodnje</h2>
+      <div class="note warn"><b>Higroskopnost.</b> Fruktoza, maltodekstrin in predvsem ksantan vlažijo vlago iz zraka. Delaj v suhem prostoru, sestavin drži zaprte in vrečke zapolni <b>takoj</b> po mešanju. V vsako vrečko dodaj silika-gel vrečico.</div>
+      <div class="note warn"><b>Natrijev citrat — dihidrat!</b> Formula uporablja <span class="mono">Na₃C₆H₅O₇·2H₂O</span> (M = 294,10). Če imaš <b>brezvodni</b> citrat, odmeri <b>4,39 g namesto 5,00 g</b> na vrečko (v kalkulatorju preklopi spodaj), sicer bo slanost in masa odmaknjeni.</div>
+      <div class="note"><b>Ksantan.</b> V suhi zmesi ni problem, a se mikro-sestavine (ksantan, arome, citrati, sol, kislina) <b>nikoli</b> ne dodajo neposredno v glavno serijo — vedno prek predmešanice s fruktozo in presejanja, sicer bo okus od vrečke do vrečke nestanoviten.</div>
+      <div class="note"><b>Presejanje.</b> Ksantan in citrate pred mešanjem presejaj skozi fino sito (≈ 500 µm), da razbiješ grudice, ki nastanejo pri skladiščenju.</div>
+      <div class="note"><b>Etiketa / serija.</b> Vsako proizvodnjo označi z LOT številko (npr. <span class="mono">LOT 2026-001</span>) in zapiši dejanske odtehtene mase — pride prav pri sledljivosti in pri pritožbah.</div>
+      <div class="note bad"><b>Varnost.</b> Praška ne uživaj suhega. Ne prekorači ≈ 90 g ogljikovih hidratov na uro. Izdelek ni za otroke. Pripravljeno pijačo porabi v 24 urah.</div>
+      <div class="flexrow">
+        <span class="muted">Če je natrijev citrat brezvodni:</span>
+        <label style="cursor:pointer"><input type="checkbox" id="anhydrous" style="width:auto"> uporabi brezvodni (4,39 g/vrečko)</label>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ TAB 3 ============ -->
+  <div id="pane3" class="hidden">
+    <div class="card">
+      <h2>Formule <small>— gramov na 500 g vrečko; spremembe se shranijo v brskalnik</small></h2>
+      <div class="note">Tukaj lahko prilagodiš formule, če se načrt spremeni (npr. prehod na alginat + pektin namesto ksantana). Vsota po formuli naj ostane 500,00 g — kalkulator opozori, če ni.</div>
+      <table id="formulaTable" class="editable"></table>
+      <div class="flexrow" style="margin-top:12px">
+        <button class="ghost" onclick="resetFormulas()">Ponastavi na izvirne formule</button>
+        <span id="formulaSum" class="muted"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="muted" style="margin-top:26px">
+    Eneruji · gel brez elektrolitov · gel z elektroliti (≈4,1 mg Na/g) · drink mix z elektroliti ·
+    okusi: jabolko (Frutol 222258), limona (221507), malina (221517) · cola zavrnjena (d-kamfor)
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* =====================================================================
+   FORMULE — vsi podatki v gramih na 500 g vrečko.
+   (urejajo se v zavihku 3; izvirne vrednosti iz plana)
+===================================================================== */
+var DEFAULT_FORMULAS = {
+  "gel-brez":   { md:272.60, fruc:215.43, xanthan:3.25, malic:2.98, aroma:5.74, naCit:0,    salt:0,    kCit:0    },
+  "gel-elektro":{ md:264.55, fruc:215.43, xanthan:3.25, malic:2.98, aroma:5.74, naCit:5.00, salt:2.25, kCit:0.80 },
+  "drink":      { md:267.80, fruc:215.43, xanthan:0,    malic:2.98, aroma:5.74, naCit:5.00, salt:2.25, kCit:0.80 }
+};
+
+var INGREDIENTS = {
+  md:      { name:"Maltodekstrin",                 unit:"kg", stockUnit:"kg" },
+  fruc:    { name:"Fruktoza",                      unit:"kg", stockUnit:"kg" },
+  xanthan: { name:"Ksantan gumi (E415)",           unit:"g",  stockUnit:"g"  },
+  malic:   { name:"Jabolčna kislina (E296)",       unit:"g",  stockUnit:"g"  },
+  aromaApple:{ name:"Aroma jabolko (Frutol 222258)", unit:"g", stockUnit:"g" },
+  aromaLemon:{ name:"Aroma limona (Frutol 221507)",  unit:"g", stockUnit:"g" },
+  aromaRasp: { name:"Aroma malina (Frutol 221517)",  unit:"g", stockUnit:"g" },
+  naCit:   { name:"Natrijev citrat dihidrat (E331)",unit:"g", stockUnit:"g" },
+  salt:    { name:"Himalajska sol",                unit:"g",  stockUnit:"g"  },
+  kCit:    { name:"Kalijev citrat (E332)",         unit:"g",  stockUnit:"g"  }
+};
+var STOCK_IN_KG = { md:true, fruc:true };
+
+var PRODUCTS = {
+  "gel-brez":    { name:"Gel brez elektrolitov" },
+  "gel-elektro": { name:"Gel z elektroliti" },
+  "drink":       { name:"Drink mix z elektroliti" }
+};
+var FLAVORS = {
+  apple:{ name:"Jabolko", ing:"aromaApple" },
+  lemon:{ name:"Limona",  ing:"aromaLemon" },
+  rasp: { name:"Malina",  ing:"aromaRasp"  }
+};
+
+/* =====================================================================
+   STANJE
+===================================================================== */
+function lsGet(k,d){ try{ var v=localStorage.getItem(k); return v?JSON.parse(v):d; }catch(e){ return d; } }
+function lsSet(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
+
+var formulas = lsGet("eneruji.formulas", null) || JSON.parse(JSON.stringify(DEFAULT_FORMULAS));
+var stock    = lsGet("eneruji.stock",    null) || {};
+var plan     = lsGet("eneruji.plan",     null) || {};
+
+function saveAll(){ lsSet("eneruji.formulas",formulas); lsSet("eneruji.stock",stock); lsSet("eneruji.plan",plan); }
+
+/* =====================================================================
+   ČISTA LOGIKA (testirljiva brez DOM)
+===================================================================== */
+function perPouch(formulas, variant, flavor){
+  var f = formulas[variant], out = {}, ing;
+  for (ing in f){ out[ing] = f[ing]; }
+  out[FLAVORS[flavor].ing] = f.aroma;
+  delete out.aroma;
+  return out;
+}
+
+function maxAlone(formulas, stock, variant, flavor){
+  var need = perPouch(formulas, variant, flavor), best = Infinity, bottleneck = null, ing;
+  for (ing in need){
+    if (need[ing] <= 0) continue;
+    var have = stock[ing] || 0;
+    var n = Math.floor(have / need[ing]);
+    if (n < best){ best = n; bottleneck = ing; }
+  }
+  if (best === Infinity) best = 0;
+  return { pouches: best, bottleneck: bottleneck };
+}
+
+function planNeeds(formulas, stock, plan){
+  var totals = {}, ing, combo, parts = {};
+  for (combo in plan){
+    var p = plan[combo] || 0;
+    if (p <= 0) continue;
+    var bits = combo.split("|");
+    var need = perPouch(formulas, bits[0], bits[1]);
+    parts[combo] = { pouches: p, grams: {} };
+    for (ing in need){
+      var g = need[ing] * p;
+      totals[ing] = (totals[ing] || 0) + g;
+      parts[combo].grams[ing] = g;
+    }
+  }
+  var scale = Infinity, bottleneck = null;
+  for (ing in totals){
+    var have = stock[ing] || 0;
+    var s = have / totals[ing];
+    if (s < scale){ scale = s; bottleneck = ing; }
+  }
+  if (scale === Infinity) scale = 0;
+  return { totals: totals, parts: parts, scale: scale, bottleneck: bottleneck };
+}
+
+function fmtG(g){
+  if (!isFinite(g)) g = 0;
+  if (Math.abs(g) >= 1000) return (g/1000).toFixed(3).replace(".",",") + " kg";
+  if (Math.abs(g) >= 100)  return g.toFixed(1).replace(".",",") + " g";
+  return g.toFixed(2).replace(".",",") + " g";
+}
+function fmtInt(n){ return String(Math.floor(n)).replace(/\B(?=(\d{3})+(?!\d))/g,"."); }
+
+/* =====================================================================
+   RENDERS
+===================================================================== */
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;"); }
+
+function renderStock(){
+  var rows = "<tr><th>Sestavina</th><th class='num'>Zaloga</th><th></th><th class='num'>V gramih</th></tr>";
+  for (var ing in INGREDIENTS){
+    var meta = INGREDIENTS[ing];
+    var inKg = STOCK_IN_KG[ing];
+    var val = (stock[ing] || 0);
+    var shown = inKg ? (val/1000) : val;
+    rows += "<tr><td>"+esc(meta.name)+"</td>" +
+      "<td class='num'><input type='number' min='0' step='"+(inKg?"0.01":"1")+"' data-ing='"+ing+"' value='"+shown+"'></td>" +
+      "<td class='unit'>"+(inKg?"kg":"g")+"</td>" +
+      "<td class='num muted' id='stockg_"+ing+"'>"+fmtG(val)+"</td></tr>";
+  }
+  document.getElementById("stockTable").innerHTML = rows;
+  var inputs = document.querySelectorAll("#stockTable input");
+  for (var i=0;i<inputs.length;i++){
+    inputs[i].addEventListener("input", onStockInput);
+  }
+}
+
+function onStockInput(e){
+  var ing = e.target.getAttribute("data-ing");
+  var v = parseFloat(e.target.value);
+  if (isNaN(v) || v < 0) v = 0;
+  stock[ing] = STOCK_IN_KG[ing] ? v*1000 : v;
+  document.getElementById("stockg_"+ing).textContent = fmtG(stock[ing]);
+  saveAll(); renderPlan(); renderMaxAlone();
+}
+
+function comboId(v,f){ return v+"|"+f; }
+
+function renderPlan(){
+  var rows = "<tr><th>Izdelek</th><th>Okus</th><th class='num'>Št. vrečk (500 g)</th><th class='num'>Porcij (30 g)</th><th class='num'>Maks. samostojno</th></tr>";
+  for (var v in PRODUCTS){
+    for (var f in FLAVORS){
+      var id = comboId(v,f);
+      var p = plan[id] || 0;
+      var mx = maxAlone(formulas, stock, v, f);
+      rows += "<tr><td>"+esc(PRODUCTS[v].name)+"</td>" +
+        "<td class='flavcol'>"+esc(FLAVORS[f].name)+"</td>" +
+        "<td class='num'><input type='number' class='short' min='0' step='1' data-combo='"+id+"' value='"+p+"'></td>" +
+        "<td class='num muted'>"+fmtInt(p*500/30)+"</td>" +
+        "<td class='num muted'>"+(mx.pouches>0 ? fmtInt(mx.pouches)+" vrečk <span class='bottleneck'>("+esc(INGREDIENTS[mx.bottleneck].name)+")</span>" : "—")+"</td></tr>";
+    }
+  }
+  document.getElementById("planTable").innerHTML = rows;
+  var inputs = document.querySelectorAll("#planTable input");
+  for (var i=0;i<inputs.length;i++){
+    inputs[i].addEventListener("input", onPlanInput);
+  }
+  renderPlanResults();
+}
+
+function onPlanInput(e){
+  var combo = e.target.getAttribute("data-combo");
+  var v = parseInt(e.target.value,10);
+  if (isNaN(v) || v < 0) v = 0;
+  plan[combo] = v;
+  saveAll(); renderPlanResults();
+  var row = e.target.closest("tr");
+  if (row){
+    var cells = row.querySelectorAll("td");
+    cells[3].textContent = fmtInt(v*500/30);
+  }
+}
+
+function renderPlanResults(){
+  var res = planNeeds(formulas, stock, plan);
+  var totalPouches = 0, totalServings = 0;
+  for (var c in res.parts){ totalPouches += res.parts[c].pouches; }
+  totalServings = totalPouches * 500 / 30;
+
+  var stats = "";
+  stats += "<div class='stat'><div class='v'>"+fmtInt(totalPouches)+"</div><div class='l'>vrečk po 500 g</div></div>";
+  stats += "<div class='stat'><div class='v'>"+fmtInt(totalServings)+"</div><div class='l'>porcij po 30 g (scoop)</div></div>";
+  stats += "<div class='stat'><div class='v'>"+fmtG(totalPouches*0.5)+"</div><div class='l'>končnega praška</div></div>";
+  var scaleTxt = (totalPouches === 0) ? "—" : (res.scale >= 1 ? "da ✓" : "ne ✗ ("+Math.floor(res.scale*100)+" %)");
+  stats += "<div class='stat'><div class='v'>"+scaleTxt+"</div><div class='l'>zaloge pokrijejo načrt?</div></div>";
+  document.getElementById("summaryStats").innerHTML = stats;
+
+  var anyPlan = totalPouches > 0;
+  var rows = "<tr><th>Sestavina</th><th class='num'>Potrebno</th><th class='num'>Na zalogi</th><th class='num'>Ostane</th><th>Status</th></tr>";
+  var order = [];
+  for (var ing in INGREDIENTS) order.push(ing);
+  for (var i=0;i<order.length;i++){
+    var ing2 = order[i];
+    var need = res.totals[ing2] || 0;
+    var have = stock[ing2] || 0;
+    var left = have - need;
+    var status, cls;
+    if (need === 0){ status = have > 0 ? "zaloga" : "—"; cls = "muted"; }
+    else if (left >= 0){ status = "OK"; cls = "ok"; }
+    else { status = "manjka "+fmtG(-left); cls = "short"; }
+    rows += "<tr><td>"+esc(INGREDIENTS[ing2].name)+"</td>" +
+      "<td class='num'>"+(need?fmtG(need):"—")+"</td>" +
+      "<td class='num'>"+(have?fmtG(have):"—")+"</td>" +
+      "<td class='num"+(left<0&&need>0?" bottleneck":"")+"'>"+(need?fmtG(left):"—")+"</td>" +
+      "<td><span class='pill "+cls+"'>"+status+"</span></td></tr>";
+  }
+  document.getElementById("needTable").innerHTML = rows;
+
+  var box = document.getElementById("bottleneckBox");
+  if (!anyPlan){ box.innerHTML = ""; }
+  else {
+    var bn = res.bottleneck;
+    var extra = "";
+    if (res.scale < 1){
+      var missing = res.totals[bn] - (stock[bn]||0);
+      extra = " Za celoten načrt manjka <b>"+fmtG(missing)+" "+esc(INGREDIENTS[bn].name)+"</b>.";
+    }
+    box.innerHTML = "<div class='note"+(res.scale<1?" bad":"")+"'>"+
+      "<b>Ozko grlo:</b> "+esc(INGREDIENTS[bn].name)+" — njegova zaloga dovoljuje "+
+      "<b>"+(res.scale>=1 ? fmtInt(res.scale*100)+" %" : Math.floor(res.scale*100)+" %")+"</b> trenutnega načrta."+
+      extra+"</div>";
+  }
+}
+
+function maxEverything(){
+  var remaining = {};
+  for (var ing in INGREDIENTS) remaining[ing] = stock[ing] || 0;
+  for (var v in PRODUCTS){
+    for (var f in FLAVORS){
+      var id = comboId(v,f);
+      var need = perPouch(formulas, v, f);
+      var best = Infinity;
+      for (var i in need){
+        if (need[i] <= 0) continue;
+        best = Math.min(best, Math.floor(remaining[i] / need[i]));
+      }
+      if (best === Infinity) best = 0;
+      plan[id] = best;
+      for (var j in need) remaining[j] -= need[j] * best;
+    }
+  }
+  saveAll(); renderPlan();
+}
+
+function clearPlan(){
+  for (var c in plan) plan[c] = 0;
+  saveAll(); renderPlan();
+}
+
+function renderMaxAlone(){ renderPlan(); }
+
+/* ---------- TAB 2 ---------- */
+function renderRecipe(){
+  var vSel = document.getElementById("recVariant");
+  var fSel = document.getElementById("recFlavor");
+  if (!vSel.options.length){
+    for (var v in PRODUCTS) vSel.add(new Option(PRODUCTS[v].name, v));
+    for (var f in FLAVORS) fSel.add(new Option(FLAVORS[f].name, f));
+    vSel.value = "gel-elektro"; fSel.value = "apple";
+    vSel.addEventListener("change", renderRecipe);
+    fSel.addEventListener("change", renderRecipe);
+    document.getElementById("recPouches").addEventListener("input", renderRecipe);
+    document.getElementById("anhydrous").addEventListener("change", renderRecipe);
+  }
+  var v = vSel.value, f = fSel.value;
+  var n = parseInt(document.getElementById("recPouches").value,10);
+  if (isNaN(n) || n < 0) n = 0;
+  var anhyd = document.getElementById("anhydrous").checked;
+
+  var need = perPouch(formulas, v, f);
+  var factor = n;
+  var rows = "<tr><th>Sestavina</th><th class='num'>Na vrečko (500 g)</th><th class='num'>Skupaj ("+n+" × 500 g)</th></tr>";
+  var order = ["md","fruc","xanthan","malic","naCit","salt","kCit","aromaApple","aromaLemon","aromaRasp"];
+  var premixParts = [];
+  for (var i=0;i<order.length;i++){
+    var ing = order[i];
+    if (!(ing in need) || need[ing] <= 0) continue;
+    var per = need[ing];
+    if (ing === "naCit" && anhyd) per = need[ing] * 258.07/294.10;
+    var tot = per * factor;
+    rows += "<tr><td>"+esc(INGREDIENTS[ing].name)+"</td>" +
+      "<td class='num'>"+fmtG(per)+"</td>" +
+      "<td class='num'><b>"+fmtG(tot)+"</b></td></tr>";
+    if (["xanthan","malic","naCit","salt","kCit"].indexOf(ing) >= 0 || ing.indexOf("aroma") === 0){
+      premixParts.push({ing:ing, per:per, tot:tot});
+    }
+  }
+  document.getElementById("recTable").innerHTML = rows;
+
+  var stats = "";
+  stats += "<div class='stat'><div class='v'>"+fmtInt(n*500/30)+"</div><div class='l'>porcij po 30 g</div></div>";
+  stats += "<div class='stat'><div class='v'>"+fmtG(n*500)+"</div><div class='l'>končnega praška</div></div>";
+  stats += "<div class='stat'><div class='v'>"+fmtG(n*500*0.976)+"</div><div class='l'>ogljikovih hidratov (~97,6 %)</div></div>";
+  if (formulas[v].naCit > 0 || formulas[v].salt > 0){
+    var naPerG = (formulas[v].naCit*0.2345 + formulas[v].salt*0.3934) / 500;
+    var kPerG = formulas[v].kCit * 0.3625 / 500;
+    stats += "<div class='stat'><div class='v'>"+Math.round(naPerG*30*1000)+" mg</div><div class='l'>natrija na porcijo (30 g)</div></div>";
+    stats += "<div class='stat'><div class='v'>"+Math.round(kPerG*30*1000)+" mg</div><div class='l'>kalija na porcijo (30 g)</div></div>";
+  }
+  document.getElementById("recStats").innerHTML = stats;
+
+  /* --- koraki mešanja --- */
+  var frucTotal = (need.fruc||0) * factor;
+  var microMass = 0;
+  for (var p=0;p<premixParts.length;p++) microMass += premixParts[p].tot;
+  var premixFruc = Math.min(microMass*10, frucTotal*0.2);
+  var steps = [];
+  steps.push("Pripravi orodje: natančna tehtnica (za mikro-sestavine 0,01 g), mešalnik (tumble / planetarni s plastičnim veslom), fino sito, suhe posode. Preveri, da je prostor suh.");
+  if (premixParts.length){
+    var pm = premixParts.map(function(x){ return INGREDIENTS[x.ing].name+" "+fmtG(x.tot); }).join(" + ");
+    steps.push("<b>Predmešanica:</b> odtehti "+pm+". Dodaj "+fmtG(premixFruc)+" fruktoze (odštete od spodnje fruktoze), zmešaj in <b>presejaj</b> skozi fino sito. To zagotovi enakomerno porazdelitev mikro-sestavine.");
+  }
+  steps.push("V mešalnik dodaj <b>maltodekstrin</b>: "+fmtG(need.md*factor)+".");
+  steps.push("Dodaj <b>fruktozo</b>: "+fmtG(frucTotal - premixFruc)+(premixFruc>0?" (fruktoza iz predmešanice je že odšteta)":"")+". Kratko premešaj (2–3 min).");
+  if (premixParts.length){
+    steps.push("Presejaj <b>predmešanico</b> čez zmes v mešalniku (nikoli ne dodajaj mikro-sestavine v kupu na eno mesto).");
+  }
+  steps.push("<b>Mešaj 10–15 minut</b> na nizki do srednji hitrosti. Ne dlje — fruktoza se pri trenju lahko začne lepljiti.");
+  if (v !== "gel-brez"){
+    steps.push(anhyd
+      ? "<b>Natrijev citrat je brezvodni:</b> v tej seriji je odmerjenih "+fmtG(need.naCit*factor*258.07/294.10)+" (namesto "+fmtG(need.naCit*factor)+" dihidrata). Preveri še enkrat proti deklaraciji dobavitelja."
+      : "<b>Preveri natrijev citrat:</b> mora biti <i>dihidrat</i>. Če je brezvodni, prihodnjički vključi izbiro »brezvodni« — odmerek se takrat sam popravi na 4,39 g/vrečko.");
+  }
+  steps.push("<b>Kontrola:</b> vonj po odprtju posode (intenzivnost arome), barva, odsotnost grudic. Vzorec raztopi: 30 g v 100–130 ml vode se mora raztopiti brez ostankov.");
+  steps.push("<b>Takoj pakiraj</b> v vrečke po 500 g, dodaj silika-gel, dobro zapri. Izpostavljen prah hitro vleče vlago.");
+  var ol = document.getElementById("stepList");
+  ol.innerHTML = steps.map(function(s){ return "<li>"+s+"</li>"; }).join("");
+
+  var notes = "";
+  if (n > 0 && n*500 >= 2000){
+    notes += "<div class='note'>Serija je "+fmtG(n*500)+" — preveri zmogljivost mešalnika. Če je prevelika za eno serijo, jo razdeli na enaka dela in vsak del mešaj z enakim postopkom (predmešanico razdeli sorazmerno).</div>";
+  }
+  if (v === "drink"){
+    notes += "<div class='note'>Drink mix je <b>brez ksantana</b> — po mešanju pijača ni stabilizirana, zato na etiketi ne sme biti naveden ksantan.</div>";
+  }
+  document.getElementById("recNotes").innerHTML = notes;
+}
+
+/* ---------- TAB 3 ---------- */
+var F_EDIT_ORDER = ["md","fruc","xanthan","malic","aroma","naCit","salt","kCit"];
+function renderFormulas(){
+  var rows = "<tr><th>Sestavina</th>";
+  for (var v in PRODUCTS) rows += "<th class='num'>"+esc(PRODUCTS[v].name)+"</th>";
+  rows += "</tr>";
+  for (var i=0;i<F_EDIT_ORDER.length;i++){
+    var ing = F_EDIT_ORDER[i];
+    rows += "<tr><td>"+esc(INGREDIENTS[ing] ? INGREDIENTS[ing].name : (ing==="aroma"?"Aroma (aktivni okus)":"—"))+"</td>";
+    for (var v2 in PRODUCTS){
+      rows += "<td class='num'><input type='number' min='0' step='0.01' data-f='"+v2+"' data-i='"+ing+"' value='"+formulas[v2][ing]+"'></td>";
+    }
+    rows += "</tr>";
+  }
+  rows += "<tr><td><b>Skupaj</b></td>";
+  for (var v3 in PRODUCTS){
+    var s=0; for (var k in formulas[v3]) s += formulas[v3][k];
+    rows += "<td class='num'><b>"+s.toFixed(2)+"</b>"+(Math.abs(s-500)>0.05?" <span class='bottleneck'>⚠</span>":"")+"</td>";
+  }
+  rows += "</tr>";
+  document.getElementById("formulaTable").innerHTML = rows;
+  var inputs = document.querySelectorAll("#formulaTable input");
+  for (var j=0;j<inputs.length;j++){
+    inputs[j].addEventListener("input", onFormulaInput);
+  }
+}
+function onFormulaInput(e){
+  var v = e.target.getAttribute("data-f"), ing = e.target.getAttribute("data-i");
+  var val = parseFloat(e.target.value);
+  if (isNaN(val) || val < 0) val = 0;
+  formulas[v][ing] = val;
+  saveAll(); renderFormulas(); renderPlan(); renderRecipe();
+}
+function resetFormulas(){
+  formulas = JSON.parse(JSON.stringify(DEFAULT_FORMULAS));
+  saveAll(); renderFormulas(); renderPlan(); renderRecipe();
+}
+
+/* ---------- tabs ---------- */
+function showTab(n){
+  var panes = ["pane1","pane2","pane3"];
+  for (var i=0;i<panes.length;i++) document.getElementById(panes[i]).className = (i===n-1)?"":"hidden";
+  var tabs = ["tab1","tab2","tab3"];
+  for (var t=0;t<tabs.length;t++) document.getElementById(tabs[t]).className = (t===n-1)?"active":"";
+  if (n===2) renderRecipe();
+  if (n===3) renderFormulas();
+}
+
+if (typeof document !== "undefined"){
+  document.addEventListener("DOMContentLoaded", function(){
+    renderStock(); renderPlan(); renderRecipe();
+  });
+}
+</script>
+</body>
+</html>
